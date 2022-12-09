@@ -1,11 +1,12 @@
 use std::ptr;
+use libc::c_void;
+
 
 //to be compatable with C linked list returned next __must__ be a *mut Element
 
-#[derive(Debug)]
 pub struct Element {
-    pub next: *mut Element,
-    pub val: String
+    next: *mut Element,
+    val: String
 }
 
 impl Element {
@@ -13,7 +14,6 @@ impl Element {
         let n = ptr::null::<Element>() as *mut Element;
         Box::new(Element{val: v, next: n }) 
     }
-    //next should be Pinned so it doesn't move
     fn set_next(&mut self, next: *mut Element) {
         let old = self.next;
         if !old.is_null() && !next.is_null() { 
@@ -21,33 +21,50 @@ impl Element {
         }
         self.next = next;
     }
+    fn get_next(&self) -> *mut Element {
+        self.next
+    }
 }
-
-//impl Copy for Element {}
-
-//impl Clone for Element {
-//    fn clone(&self) -> Self {
-//        *self
-//    }
-//}
 
 
 pub struct List {
     head: *mut Element,
     next: *mut Element,
+    drop_each: Option<fn(*mut Element)>,
+    drop_first: Option<fn(*mut Element)>
 }
 
-impl<'a> List {
+impl List {
     pub fn new() -> List {
-        List{head: ptr::null::<Element>() as *mut Element, next: ptr::null::<Element>() as *mut Element}
+        List{head: ptr::null::<Element>() as *mut Element, next: ptr::null::<Element>() as *mut Element, drop_each: Some(|x: *mut Element| unsafe{std::ptr::drop_in_place(x)}), drop_first: None}
+    }
+
+    pub fn from_c(elem: *mut Element) -> List {
+        List{head: elem, next: ptr::null::<Element>() as *mut Element, drop_each: Some(|x: *mut Element| unsafe{libc::free(x as *mut c_void)}), drop_first: None}
+    }
+
+    pub fn with_custom_drop(first: Option<*mut Element>, drop_each: Option<fn(*mut Element)>, drop_first: Option<fn(*mut Element)>) -> List {
+        List{head: first.unwrap_or(ptr::null::<Element>() as *mut Element), next: ptr::null::<Element>() as *mut Element, drop_each: drop_each, drop_first: drop_first}
     }
 
     pub fn add(&mut self, mut elem: Box<Element>) {
         if !self.head.is_null() {
             elem.set_next(self.head);
         }
+        //into_raw is crucial so elem isn't dropped
         self.head = Box::into_raw(elem);
-        println!("{:?} in add", unsafe{& *self.head});
+    }
+}
+
+impl Drop for List{
+    fn drop(&mut self) {
+        if let Some(d) = self.drop_first {
+            d(self.head);
+        } else if let Some(d) = self.drop_each {
+            while let Some(elem) = self.next() {
+                d(elem);
+            }
+        }
     }
 }
 
@@ -55,46 +72,30 @@ impl Iterator for List {
     type Item = *mut Element;
 
     fn next(&mut self) -> Option<Self::Item> {
-        println!("next");
         if self.head.is_null() {
-            println!("nope");
-            return None;
-        }
-        println!("{:?} head in next", unsafe{& *self.head});
-        if self.next.is_null() {
-            println!("foo");
-            println!("{:?} head in next", unsafe{& *self.head});
+            None
+        } else if self.next.is_null() {
             self.next = self.head;
-            println!("{:?} next in next", unsafe{& *self.next});
-            return Some(self.next);
-        }
-        if unsafe{& *self.next}.next.is_null() {
-            println!("bar");
+            Some(self.next)
+        } else if unsafe{& *self.next}.get_next().is_null() {
             self.next = ptr::null::<Element>() as *mut Element;
-            return None;
+            None
+        } else { self.next = unsafe{& *self.next}.get_next();
+        Some(self.next)
         }
-        println!("baz");
-        self.next = unsafe{& *self.next}.next;
-        return Some(self.next);
     }
 }
 
-
-
 #[test]
 fn empty_list() {
-    println!("start");
     let mut list = List::new();
-    println!("middle");
     assert_eq!(list.next(), None);
-    println!("end");
 }
 
 #[test]
 fn non_empty_list() {
     let mut list = List::new();
     let first = Element::new(String::from("test"));
-    println!("{:?} first", first);
 
     list.add(first);
     list.add(Element::new(String::from("bannana")));
@@ -118,12 +119,7 @@ fn multiple_iterations() {
     assert_eq!(list.next() , None);
     list.add(Element::new(String::from("fifth")));
 
-    assert_eq!(unsafe{& *list.next().unwrap()}.val , String::from("fifth"));
-    list.add(Element::new(String::from("sixth")));
-    assert_eq!(unsafe{& *list.next().unwrap()}.val , String::from("fourth"));
-    assert_eq!(unsafe{& *list.next().unwrap()}.val , String::from("third"));
-    assert_eq!(unsafe{& *list.next().unwrap()}.val , String::from("second"));
-    assert_eq!(unsafe{& *list.next().unwrap()}.val , String::from("first"));
-    assert_eq!(list.next(), None);
+    let expected = vec![String::from("fifth"), String::from("fourth"), String::from("third"), String::from("second"), String::from("first")];
+    assert_eq!(list.map(|e| unsafe{(*e).val.clone()}).collect::<Vec<String>>(), expected);
 }
 
