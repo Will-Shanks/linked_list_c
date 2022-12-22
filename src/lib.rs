@@ -1,4 +1,5 @@
 use core::ptr;
+#[cfg(feature="libc")]
 use libc::c_void;
 use core::marker::PhantomData;
 
@@ -38,6 +39,7 @@ impl<T: LlItem> List<'_, T> {
         List{head: ptr::null_mut(), n: ptr::null_mut(), drop_first: None, drop_each: Some(|x: *mut T| unsafe{std::ptr::drop_in_place(x)}), _phantom: PhantomData}
     }
 
+    #[cfg(feature="libc")]
     pub fn from_c(elem: *mut T) -> List<'static, T> {
         List{head: elem, n: ptr::null_mut(), drop_first: None, drop_each: Some(|x: *mut T| unsafe{libc::free(x as *mut c_void)}), _phantom: PhantomData}
     }
