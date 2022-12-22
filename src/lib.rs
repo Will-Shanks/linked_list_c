@@ -58,12 +58,16 @@ impl<T: LlItem> List<'_, T> {
     }
 }
 
-impl<T: LlItem> From<Vec<T>> for List<'_, T> {
-    fn from(elems: Vec<T>) -> List<'static, T> {
+impl<T, U> From<Vec<U>> for List<'_, T>
+where
+    T: LlItem,
+    U: Into<T>,
+ {
+    fn from(elems: Vec<U>) -> List<'static, T> {
         let mut l = List::new();
         //TODO figure out how to not need to box here
         for x in elems {
-            l.add(Box::new(x));
+            l.add(Box::new(x.into()));
         }
         l
     }
