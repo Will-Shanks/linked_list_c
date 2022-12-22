@@ -57,10 +57,23 @@ impl<T: LlItem> List<'_, T> {
     }
 }
 
+impl<T: LlItem> From<Vec<T>> for List<'_, T> {
+    fn from(elems: Vec<T>) -> List<'static, T> {
+        let mut l = List::new();
+        //TODO figure out how to not need to box here
+        for x in elems {
+            l.add(Box::new(x));
+        }
+        l
+    }
+}
+
 impl<'a, T: LlItem> Drop for List<'a, T>{
     fn drop(&mut self) {
         if let Some(d) = self.drop_first {
-            d(self.head);
+            if !self.head.is_null() {
+                d(self.head);
+            }
         }
     }
 }
