@@ -29,20 +29,21 @@ pub struct List<'a, T: LlItem> {
     head: *mut T,
     n: *mut T,
     drop_first: Option<fn(*mut T)>,
+    drop_each: Option<fn(*mut T)>,
     _phantom: PhantomData<&'a mut T>
 }
 
 impl<T: LlItem> List<'_, T> {
     pub fn new() -> List<'static, T> {
-        List{head: ptr::null_mut(), n: ptr::null_mut(), drop_first: Some(|x: *mut T| unsafe{std::ptr::drop_in_place(x)}), _phantom: PhantomData}
+        List{head: ptr::null_mut(), n: ptr::null_mut(), drop_first: None, drop_each: Some(|x: *mut T| unsafe{std::ptr::drop_in_place(x)}), _phantom: PhantomData}
     }
 
     pub fn from_c(elem: *mut T) -> List<'static, T> {
-        List{head: elem, n: ptr::null_mut(), drop_first: Some(|x: *mut T| unsafe{libc::free(x as *mut c_void)}), _phantom: PhantomData}
+        List{head: elem, n: ptr::null_mut(), drop_first: None, drop_each: Some(|x: *mut T| unsafe{libc::free(x as *mut c_void)}), _phantom: PhantomData}
     }
 
-    pub unsafe fn with_custom_drop(first: *mut T, drop_first: Option<fn(*mut T)>) -> List<'static, T> {
-        List{head: first, n: ptr::null_mut(), drop_first: drop_first, _phantom: PhantomData}
+    pub unsafe fn with_custom_drop(first: *mut T, drop_each: Option<fn(*mut T)>, drop_first: Option<fn(*mut T)>) -> List<'static, T> {
+        List{head: first, n: ptr::null_mut(), drop_first: drop_first, drop_each: drop_each, _phantom: PhantomData}
     }
 
     pub fn add(&mut self, mut elem: Box<T>) {
@@ -74,6 +75,13 @@ impl<'a, T: LlItem> Drop for List<'a, T>{
             if !self.head.is_null() {
                 d(self.head);
             }
+        } else if let Some(d) = self.drop_each {
+            let mut next = self.head;
+            while !next.is_null() {
+                let tmp = next;
+                next = unsafe{(*next).get_next()};
+                d(tmp);
+            } 
         }
     }
 }
