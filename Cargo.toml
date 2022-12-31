@@ -1,16 +1,21 @@
 [package]
 name = "linked_list_c"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Will-Shanks/linked_list_c-rs"
-description = "Safely create and iterate over c linked lists"
+description = "Safely work with c compatible linked lists"
 keywords = ["linked_list", "ffi", "c"]
 categories = ["data-structures"]
 
 [dependencies]
 libc = {version = "0.2", optional = true}
+linked_list_c_derive = { version = "0.1", optional = true}
 log = "0.4"
 
 [dev-dependencies]
 env_logger = "0.10"
+
+[features]
+default = []
+derive = ["dep:linked_list_c_derive"]

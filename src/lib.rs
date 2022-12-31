@@ -4,6 +4,9 @@ use libc::c_void;
 use core::marker::PhantomData;
 use log::trace;
 
+#[cfg(feature="derive")]
+pub use linked_list_c_derive::LlItem;
+
 pub trait LlItem {
     fn get_next(&self) -> *mut Self;
     fn set_next(&mut self, next: *mut Self) -> Option<*mut Self>;
@@ -25,6 +28,7 @@ impl<T: LlItem> LlItemPtr for *mut T {
     }
 }
 
+// Implement LlItem for any struct which contains a member next: *mut Self which points to the next element in the list
 #[macro_export]
 macro_rules! impl_LlItem {
     ([$($t:ty),+]) => {
@@ -101,6 +105,8 @@ impl<T: LlItem> List<'_, T> {
         std::mem::forget(elems);
     }
 
+    // Return a pointer to the head of the linked list
+    // This is the pointer a C FFI expects when it takes a linked list
     pub fn head(&self) -> *mut T {
         trace!("Returning list head {:?}", &self.head);
         self.head
@@ -115,7 +121,7 @@ where
     fn from(elems: Vec<U>) -> List<'static, T> {
         trace!("Converting Vec to List");
         let mut l = List::new();
-        //TODO figure out how to not need to box here
+            //TODO figure out how to not need to copy into a Box
         for x in elems {
             //into_raw is crucial so elem isn't dropped
             l.add(Box::into_raw(Box::new(x.into())));
