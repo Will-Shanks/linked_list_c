@@ -1,6 +1,6 @@
 [package]
 name = "linked_list_c"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Will-Shanks/linked_list_c-rs"
@@ -9,7 +9,6 @@ keywords = ["linked_list", "ffi", "c"]
 categories = ["data-structures"]
 
 [dependencies]
-libc = {version = "0.2", optional = true}
 linked_list_c_derive = { version = "0.1", optional = true}
 log = "0.4"
 
