@@ -114,10 +114,11 @@ impl<'a, T: LlItem> Iterator for InnerList<'a, T> {
         } else {
             //in the middle of the list, iterate
             self.current = unsafe{(*self.current).get_next()};
-            trace!("InnerList head {:?} returning next element {:?}", &self.head, &self.current);
             if self.current.is_null() {
+                trace!("InnerList head {:?} at end of list", &self.head);
                 None
             } else {
+                trace!("InnerList head {:?} returning next element {:?}", &self.head, &self.current);
                 Some(unsafe{&*self.current})
             }
         }
