@@ -8,6 +8,8 @@ pub struct List<'a, T: LlItem> {
 }
 
 impl<T: LlItem> List<'_, T> {
+    //not unsafe since ptr isn't derefed
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn from(first: *mut T) -> List<'static, T> {
         List{list: unsafe{InnerList::drop_each(first,
             |x: *mut T| {std::ptr::drop_in_place(x); std::alloc::dealloc(x as *mut u8, std::alloc::Layout::for_value(&*x));})}
