@@ -48,15 +48,12 @@ impl<T: LlItem> InnerList<'_, T> {
     /// if trying to add two lists together see the InnerList<T>.combine(InnerList<T>) method
     /// which does memory managment correctly
     pub fn add(&mut self, elem: *mut T) {
-        let oldhead = self.head;
-        if !self.head.is_null() {
-            let mut last = elem;
-            while !unsafe{(*last).get_next()}.is_null() {
-                last = unsafe{(*last).get_next()};
-            }
-            unsafe{(*last).set_next(self.head)};
+        if elem.is_null() {
+            return;
         }
+        let oldhead = self.head;
         self.head = elem;
+        unsafe{(*self.head).set_next(oldhead)};
         trace!("InnerList head {:?} Added elemenet(s), new head {:?}", &oldhead, &self.head);
     }
 
